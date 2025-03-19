@@ -5,6 +5,8 @@ async function saveAction(action) {
   try {
     connection = await pool.getConnection();
 
+    await connection.query("SET time_zone = 'America/Mexico_City'");
+
     const query = "INSERT INTO movimientos (movimiento) VALUES (?)";
     const [result] = await connection.query(query, [action.type]);
 

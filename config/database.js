@@ -18,7 +18,6 @@ async function initializeDbConnection() {
     console.log('Conexión a la base de datos establecida');
     // Probamos que la conexión funciona
 
-    await connection.query("SET time_zone = 'America/Mexico_City'");
     connection.release(); // Liberamos la conexión de vuelta al pool
     return pool; // Devolvemos el pool, no la conexión individual
   } catch (error) {
