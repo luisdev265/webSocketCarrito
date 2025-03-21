@@ -1,11 +1,11 @@
-const actionModel = require('../../models/action');
-const WebSocket = require('ws');
+const actionModel = require("../../models/action");
+const WebSocket = require("ws");
 
 // Store all active connections
 const clients = new Set();
 
 const sendToClients = (message) => {
-  clients.forEach(client => {
+  clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify(message));
     }
@@ -13,83 +13,86 @@ const sendToClients = (message) => {
 };
 
 const setupMovimientosWS = (ws) => {
-    console.log('Nueva conexión WebSocket establecida');
-    
-    // Add client to the set
-    clients.add(ws);
+  console.log("Nueva conexión WebSocket establecida");
 
-    // Enviar mensaje de bienvenida
-    ws.send(JSON.stringify({ type: 'connection', message: 'Conexión establecida con el servidor' }));
+  // Add client to the set
+  clients.add(ws);
 
-    // Manejar mensajes recibidos
-    ws.on('message', async (message) => {
-      try {
-        const data = JSON.parse(message);
-        console.log('Mensaje recibido:', data);
+  // Enviar mensaje de bienvenida
+  ws.send(
+    JSON.stringify({
+      type: "connection",
+      message: "Conexión establecida con el servidor",
+    })
+  );
 
-        // Guardar la acción en la base de datos
-        if (data.action) {
-          const actionId = await actionModel.saveAction(data.action);
-          
-          // Broadcast to all connected clients
+  // Manejar mensajes recibidos
+  ws.on("message", async (message) => {
+    try {
+      const data = JSON.parse(message);
+      console.log("Mensaje recibido:", data);
+
+      // Guardar la acción en la base de datos
+      if (data.action) {
+        const actionId = await actionModel.saveAction(data.action);
+
+        // Broadcast to all connected clients
+        const broadcastMessage = {
+          type: "new_movement",
+          movement: data.action.type,
+          actionId: actionId,
+        };
+
+        sendToClients(broadcastMessage);
+
+        // Confirmar al cliente que envió la acción
+        ws.send(
+          JSON.stringify({
+            type: "confirmation",
+            actionId: actionId,
+            message: "Acción registrada correctamente",
+          })
+        );
+      } else if (data.manual) {
+        try {
+          const actionId = await actionModel.saveAction(data.manual);
+          // Manejar los movimientos manuales
+          console.log("Mensaje recibido de modo manual:", data);
+
           const broadcastMessage = {
-            type: 'new_movement',
-            movement: data.action.type,
-            actionId: actionId
+            type: "setMovement",
+            movement: data.manual.type,
+            actionId: actionId,
+            message: "Acción registrada correctamente",
           };
 
           sendToClients(broadcastMessage);
-
-          // Confirmar al cliente que envió la acción
-          ws.send(JSON.stringify({
-            type: 'confirmation',
-            actionId: actionId,
-            message: 'Acción registrada correctamente'
-          }));
-        } else if (data.manual) {
-          try {
-            // Manejar los movimientos manuales
-            console.log("Mensaje recibido de modo manual:", data);
-      
-            if (data.manual.setMovement) {
-              const broadcastMessage = {
-                type: "setMovement",
-                movement: data.manual.setMovement,
-              };
-      
-              sendToClients(broadcastMessage);
-            } else if (data.manual.unsetMovement) {
-              const broadcastMessage = {
-                type: "unset_movement",
-                movement: data.manual.unsetMovement,
-              };
-      
-              sendToClients(broadcastMessage);
-            }
-          } catch (error) {
-            console.error("Error al procesar el mensaje manual:", error);
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                message: "Error al procesar el mensaje manual",
-              })
-            );
-          }
+        } catch (error) {
+          console.error("Error al procesar el mensaje manual:", error);
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Error al procesar el mensaje manual",
+            })
+          );
         }
-      } catch (error) {
-        console.error('Error al procesar el mensaje:', error);
-        ws.send(JSON.stringify({
-          type: 'error',
-          message: 'Error al procesar la acción'
-        }));
       }
-    });
+    } catch (error) {
+      console.error("Error al procesar el mensaje:", error);
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          message: "Error al procesar la acción",
+        })
+      );
+    }
+  });
 
-    // Manejar desconexiones
-    ws.on('close', () => {
-      clients.delete(ws);
-      console.log('Conexión WebSocket cerrada en /movimientos');
-    });
-}
+  // Manejar desconexiones
+  ws.on("close", () => {
+    clients.delete(ws);
+    console.log("Conexión WebSocket cerrada en /movimientos");
+  });
+};
 
 module.exports = setupMovimientosWS;
