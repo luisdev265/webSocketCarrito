@@ -4,6 +4,14 @@ const WebSocket = require('ws');
 // Store all active connections
 const clients = new Set();
 
+const sendToClients = (message) => {
+  clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(message));
+    }
+  });
+};
+
 const setupMovimientosWS = (ws) => {
     console.log('Nueva conexión WebSocket establecida');
     
@@ -30,11 +38,7 @@ const setupMovimientosWS = (ws) => {
             actionId: actionId
           };
 
-          clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify(broadcastMessage));
-            }
-          });
+          sendToClients(broadcastMessage);
 
           // Confirmar al cliente que envió la acción
           ws.send(JSON.stringify({
@@ -42,6 +46,35 @@ const setupMovimientosWS = (ws) => {
             actionId: actionId,
             message: 'Acción registrada correctamente'
           }));
+        } else if (data.manual) {
+          try {
+            // Manejar los movimientos manuales
+            console.log("Mensaje recibido de modo manual:", data);
+      
+            if (data.manual.setMovement) {
+              const broadcastMessage = {
+                type: "setMovement",
+                movement: data.manual.setMovement,
+              };
+      
+              sendToClients(broadcastMessage);
+            } else if (data.manual.unsetMovement) {
+              const broadcastMessage = {
+                type: "unset_movement",
+                movement: data.manual.unsetMovement,
+              };
+      
+              sendToClients(broadcastMessage);
+            }
+          } catch (error) {
+            console.error("Error al procesar el mensaje manual:", error);
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: "Error al procesar el mensaje manual",
+              })
+            );
+          }
         }
       } catch (error) {
         console.error('Error al procesar el mensaje:', error);
