@@ -60,7 +60,7 @@ const setupMovimientosWS = (ws) => {
           console.log("Mensaje recibido de modo manual:", data);
 
           const broadcastMessage = {
-            type: "setMovement",
+            type: "new_movement",
             movement: data.manual.type,
             actionId: actionId,
             message: "Acción registrada correctamente",
