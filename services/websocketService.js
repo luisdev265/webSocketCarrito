@@ -11,7 +11,7 @@ function setupWebSocketServer(server) {
   wssMovimientos.on('connection', setupMovimientosWS);
   wssModoManual.on('connection', modoManualWS);
 
-  return wssMovimientos, wssModoManual;
+  return { wssMovimientos, wssModoManual };
 }
 
 module.exports = setupWebSocketServer;
